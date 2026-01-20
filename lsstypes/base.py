@@ -1924,7 +1924,7 @@ class ObservableTree(object):
 
     def match(self, observable):
         """
-        Match the the tree to the input observable, recursively, matching labels and branches.
+        Match the the tree to the input observable, recursively, matching structure (labels) and coordinates.
 
         Parameters
         ----------
@@ -1934,13 +1934,11 @@ class ObservableTree(object):
         Returns
         -------
         ObservableTree
-            New tree with branches matched to input observable.
+            New tree matched to input observable.
         """
         assert isinstance(observable, ObservableTree), 'input must be a tree'
-        observable_labels = observable.labels(level=None)
-        self_labels = self.labels(level=None)
-        assert observable_labels == self_labels, f'cannot match to input observable as the tree structure is different: {observable_labels} vs {self_labels}'
-        new = tree_map(lambda observables: observables[1].match(observables[0]), [observable, self], is_leaf='input_not_leaf')
+        new = tree_map(lambda observables, label: observables[1].match(observables[0]),
+                       [observable, self], input_label=True, is_leaf='input_not_leaf')
         for name in ['_attrs', '_meta']:
             setattr(new, name, getattr(self, name))
         return new
@@ -2307,26 +2305,21 @@ class _ObservableTreeUpdateRef(object):
         else:
             index = None
         tree = _get_leaf(self._tree, index)
-        observable_labels = observable.labels(level=None)
-        self_labels = tree.labels(level=None)
-        assert observable_labels == self_labels, f'cannot match to input observable as the tree structure is different: {observable_labels} vs {self_labels}'
-
-        transforms, starts = [], []
-        branches, ibranches = [], []
+        transforms, starts, branches, ibranches = [], [], [], []
         for ibranch, branch in enumerate(observable._branches):
-            _ibranch = tree._index_labels({k: v[ibranch] for k, v in observable._labels.items()}, flatten=True)
-            assert len(_ibranch) == 1 and len(_ibranch[0]) == 1
+            _labels = {k: v[ibranch] for k, v in observable._labels.items()}
+            _ibranch = tree._index_labels(_labels, flatten=True)
+            assert len(_ibranch) == 1 and len(_ibranch[0]) == 1, f'input observable contains {_labels} which is not in current tree'
             _ibranch = _ibranch[0][0]
             _branch = tree._branches[_ibranch]
-            branch = _get_update_ref(_branch)(_branch, select=self._select, hook=hook).match(branch)
+            _branch = _get_update_ref(_branch)(_branch, select=self._select, hook=hook).match(branch)
             if self._hook:
-                branch, _transform = branch
-            branches.append(branch)
-            ibranches.append(_ibranch)
-            if self._hook:
+                _branch, _transform = _branch
                 start, stop = _get_range_in_tree(tree, (_ibranch,))
                 transforms.append(_transform)
                 starts.append((start, stop))
+            branches.append(_branch)
+            ibranches.append(_ibranch)
         if self._hook:
             transform = _concatenate_transforms(transforms, starts, size=tree.size)
         tree = tree.copy()

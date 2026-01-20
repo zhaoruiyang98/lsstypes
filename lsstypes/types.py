@@ -603,7 +603,7 @@ class Mesh3SpectrumPole(ObservableLeaf):
 
 @register_type
 class Mesh3SpectrumPoles(ObservableTree):
-    """
+    r"""
     Container for multiple bispectrum multipoles :math:`B_\ell(k)`.
 
     Stores a collection of `Mesh3SpectrumPole` objects for different multipole orders :math:`\ell`, allowing joint analysis and plotting.

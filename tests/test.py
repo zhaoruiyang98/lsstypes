@@ -98,6 +98,23 @@ def test_tree():
     tree3 = read(fn)
     assert tree3 == tree2
 
+    def get_poles(seed=None):
+        ells = [0, 2, 4]
+        rng = np.random.RandomState(seed=seed)
+        poles = []
+        for ell in ells:
+            k_edges = np.linspace(0., 0.2, 41)
+            k_edges = np.column_stack([k_edges[:-1], k_edges[1:]])
+            k = np.mean(k_edges, axis=-1)
+            poles.append(Mesh2SpectrumPole(k=k, k_edges=k_edges, num_raw=rng.uniform(size=k.size)))
+        return Mesh2SpectrumPoles(poles, ells=ells)
+
+    poles = get_poles()
+    poles2 = poles.get(ells=[2])
+    poles3 = poles.match(poles2)
+    assert poles3.labels() == poles2.labels()
+    assert np.all(poles3.value() == poles2.value())
+
 
 def test_at():
 
@@ -121,7 +138,11 @@ def test_at():
     tree = ObservableTree([poles, bao], observables=['spectrum', 'bao'])
     cov = CovarianceMatrix(value=np.eye(tree.size), observable=tree)
     observable = tree.select(k=slice(0, None, 5))
-    cov = cov.at.observable.match(observable)
+    cov2 = cov.at.observable.match(observable)
+    observable = tree.at(observables='spectrum', ells=[0]).select(k=slice(0, None, 5))
+    observable = tree.at(observables='spectrum').get(ells=[0])
+    cov2 = cov.at.observable.match(observable)
+    assert np.allclose(cov2.observable.value(), observable.value())
 
     at = poles.at(2)
     at._hook = lambda new, transform: new
