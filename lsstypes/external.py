@@ -5,7 +5,7 @@ Count2Correlation, Count2JackknifeCorrelation, Mesh2CorrelationPole, Mesh2Correl
 from .utils import my_ones_like
 
 
-def from_pypower(power):
+def from_pypower(power, complex=True):
     r"""
     Convert a :mod:`pypower` power spectrum or correlation function object to :class:`Mesh2SpectrumPoles` or :class:`Mesh2CorrelationPoles` format.
 
@@ -14,11 +14,21 @@ def from_pypower(power):
     power : object
         Input power spectrum or correlation function object.
 
+    complex : bool, default=True
+        If ``False``, take real part of even poles and imaginary part of odd poles.
+
     Returns
     -------
     Mesh2SpectrumPoles, Mesh2CorrelationPoles
         Poles object containing the converted power spectrum or correlation function data.
     """
+    def to_real(value, ell=0):
+        if complex:
+            return value + 0j
+        if ell % 2:
+            return np.imag(value)
+        return np.real(value)
+
     if hasattr(power, 's'):  # correlation
         corr = power
         ells = corr.ells
@@ -28,9 +38,9 @@ def from_pypower(power):
             s = corr.s
             ones = (0. >= corr.edges[0][:-1]) & (0. < corr.edges[0][1:])
             num_raw = corr.corr[ill] * corr.wnorm + (ell == 0) * corr.shotnoise_nonorm
-            poles.append(Mesh2CorrelationPole(s=s, s_edges=s_edges, num_raw=num_raw,
-                                        num_shotnoise=corr.shotnoise_nonorm * ones * (ell == 0),
-                                        norm=corr.wnorm * ones,
+            poles.append(Mesh2CorrelationPole(s=s, s_edges=s_edges, num_raw=to_real(num_raw, ell=ell),
+                                        num_shotnoise=to_real(corr.shotnoise_nonorm * ones * (ell == 0), ell=ell),
+                                        norm=to_real(corr.wnorm * ones),
                                         nmodes=corr.nmodes, ell=ell))
         return Mesh2CorrelationPoles(poles)
     else:
@@ -41,9 +51,9 @@ def from_pypower(power):
             k = power.k
             ones = my_ones_like(power.power_nonorm[ill])
             num_raw = power.power[ill] * power.wnorm + (ell == 0) * power.shotnoise_nonorm
-            poles.append(Mesh2SpectrumPole(k=k, k_edges=k_edges, num_raw=num_raw,
-                                        num_shotnoise=power.shotnoise_nonorm * ones * (ell == 0),
-                                        norm=power.wnorm * ones,
+            poles.append(Mesh2SpectrumPole(k=k, k_edges=k_edges, num_raw=to_real(num_raw, ell=ell),
+                                        num_shotnoise=to_real(power.shotnoise_nonorm * ones * (ell == 0), ell=ell),
+                                        norm=to_real(power.wnorm * ones),
                                         nmodes=power.nmodes, ell=ell))
         return Mesh2SpectrumPoles(poles)
 
