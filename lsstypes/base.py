@@ -2076,12 +2076,12 @@ class ObservableTree(object):
         branches, labels = [], {label: [] for label in observables[0]._labels}
         for observable in observables:
             assert isinstance(observable, ObservableTree)
-            assert set(observable._labels) == set(labels), 'All collections must have same labels'
+            assert set(observable._labels) == set(labels), 'all collections must have same labels'
             branches += observable._branches
             for k in labels:
                 labels[k] = labels[k] + observable._labels[k]
-        new = observables[0].copy()
-        ObservableTree.__init__(new, branches, **labels)  # check labels
+        new = observables[0].__class__.__new__(observables[0].__class__)
+        ObservableTree.__init__(new, branches, attrs=observables[0]._attrs, meta=observables[0]._meta, **labels)  # check labels
         return new
 
     @classmethod
